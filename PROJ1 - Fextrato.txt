@@ -1,0 +1,280 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define MAX_USERS 10
+
+// Estrutura para armazenar dados do usuário
+typedef struct {
+    char cpf[12];
+    char senha[20];
+    float saldoReais;
+    float saldoBitcoin;
+    float saldoEthereum;
+    float saldoRipple;
+} Usuario;
+
+// Função para realizar o cadastro de novos usuários
+void cadastrarUsuario(Usuario usuarios[], int *totalUsuarios) {
+    if (*totalUsuarios >= MAX_USERS) {
+        printf("Limite de usuários atingido!\n");
+        return;
+    }
+
+    Usuario novoUsuario;
+
+    printf("Digite o CPF: ");
+    scanf("%s", novoUsuario.cpf);
+
+    // Verificar se o CPF já existe
+    for (int i = 0; i < *totalUsuarios; i++) {
+        if (strcmp(usuarios[i].cpf, novoUsuario.cpf) == 0) {
+            printf("Este CPF já está cadastrado!\n");
+            return;
+        }
+    }
+
+    printf("Digite a senha: ");
+    scanf("%s", novoUsuario.senha);
+
+    // Inicializa os saldos
+    novoUsuario.saldoReais = 0.0;
+    novoUsuario.saldoBitcoin = 0.0;
+    novoUsuario.saldoEthereum = 0.0;
+    novoUsuario.saldoRipple = 0.0;
+
+    // Adiciona o novo usuário ao array de usuários
+    usuarios[*totalUsuarios] = novoUsuario;
+    (*totalUsuarios)++;
+
+    printf("Cadastro realizado com sucesso!\n");
+}
+
+// Função para realizar login
+int efetuarLogin(Usuario usuarios[], int totalUsuarios, char cpf[], char senha[]) {
+    for (int i = 0; i < totalUsuarios; i++) {
+        if (strcmp(usuarios[i].cpf, cpf) == 0 && strcmp(usuarios[i].senha, senha) == 0) {
+            printf("Login realizado com sucesso!\n");
+            return i; // Retorna o índice do usuário
+        }
+    }
+    printf("CPF ou senha inválidos.\n");
+    return -1;
+}
+
+// Função para consultar saldo
+void consultarSaldo(Usuario *usuario) {
+    printf("Saldo em Reais: %.2f\n", usuario->saldoReais);
+    printf("Saldo em Bitcoin: %.6f\n", usuario->saldoBitcoin);
+    printf("Saldo em Ethereum: %.6f\n", usuario->saldoEthereum);
+    printf("Saldo em Ripple: %.6f\n", usuario->saldoRipple);
+}
+
+// Função para depositar reais
+void depositarReais(Usuario *usuario, float valor) {
+    if (valor > 0) {
+        usuario->saldoReais += valor;
+        printf("Depósito realizado com sucesso. Novo saldo em Reais: %.2f\n", usuario->saldoReais);
+    } else {
+        printf("Valor inválido!\n");
+    }
+}
+
+// Função para sacar reais
+int sacarReais(Usuario *usuario, float valor, char senha[]) {
+    if (strcmp(usuario->senha, senha) != 0) {
+        printf("Senha inválida!\n");
+        return 0;
+    }
+
+    if (valor <= usuario->saldoReais) {
+        usuario->saldoReais -= valor;
+        printf("Saque realizado com sucesso. Novo saldo em Reais: %.2f\n", usuario->saldoReais);
+        return 1;
+    } else {
+        printf("Saldo insuficiente!\n");
+        return 0;
+    }
+}
+
+// Função para comprar criptomoeda
+void comprarCriptomoeda(Usuario *usuario, char senha[], char criptomoeda[], float valor, float taxa) {
+    if (strcmp(usuario->senha, senha) != 0) {
+        printf("Senha inválida!\n");
+        return;
+    }
+
+    float valorComTaxa = valor + valor * taxa;
+
+    if (valorComTaxa <= usuario->saldoReais) {
+        usuario->saldoReais -= valorComTaxa;
+
+        if (strcmp(criptomoeda, "Bitcoin") == 0) {
+            usuario->saldoBitcoin += valor;
+        } else if (strcmp(criptomoeda, "Ethereum") == 0) {
+            usuario->saldoEthereum += valor;
+        } else if (strcmp(criptomoeda, "Ripple") == 0) {
+            usuario->saldoRipple += valor;
+        }
+
+        printf("Compra de %s realizada com sucesso!\n", criptomoeda);
+        printf("Valor: %.2f, Taxa: %.2f\n", valor, valor * taxa);
+        printf("Novo saldo em Reais: %.2f\n", usuario->saldoReais);
+    } else {
+        printf("Saldo insuficiente para realizar a compra!\n");
+    }
+}
+
+// Função para vender criptomoeda
+void venderCriptomoeda(Usuario *usuario, char senha[], char criptomoeda[], float valor, float taxa) {
+    if (strcmp(usuario->senha, senha) != 0) {
+        printf("Senha inválida!\n");
+        return;
+    }
+
+    if (strcmp(criptomoeda, "Bitcoin") == 0 && valor <= usuario->saldoBitcoin) {
+        usuario->saldoBitcoin -= valor;
+    } else if (strcmp(criptomoeda, "Ethereum") == 0 && valor <= usuario->saldoEthereum) {
+        usuario->saldoEthereum -= valor;
+    } else if (strcmp(criptomoeda, "Ripple") == 0 && valor <= usuario->saldoRipple) {
+        usuario->saldoRipple -= valor;
+    } else {
+        printf("Saldo insuficiente em %s para realizar a venda!\n", criptomoeda);
+        return;
+    }
+
+    float valorComTaxa = valor - valor * taxa;
+    usuario->saldoReais += valorComTaxa;
+    printf("Venda de %s realizada com sucesso!\n", criptomoeda);
+    printf("Valor: %.2f, Taxa: %.2f\n", valor, valor * taxa);
+    printf("Novo saldo em Reais: %.2f\n", usuario->saldoReais);
+}
+
+// Função para salvar os dados dos usuários em arquivo binário
+void salvarDados(Usuario usuarios[], int totalUsuarios) {
+    FILE *file = fopen("carteira.dat", "wb");
+    fwrite(usuarios, sizeof(Usuario), totalUsuarios, file);
+    fclose(file);
+}
+
+// Função para carregar os dados dos usuários de um arquivo binário
+void carregarDados(Usuario usuarios[], int *totalUsuarios) {
+    FILE *file = fopen("carteira.dat", "rb");
+    if (file != NULL) {
+        *totalUsuarios = fread(usuarios, sizeof(Usuario), MAX_USERS, file);
+        fclose(file);
+    }
+}
+
+// Função para atualizar a cotação de criptomoedas aleatoriamente
+void atualizarCotacao(float *cotacaoBitcoin, float *cotacaoEthereum, float *cotacaoRipple) {
+    srand(time(NULL));
+    *cotacaoBitcoin += (*cotacaoBitcoin) * ((rand() % 11 - 5) / 100.0); // Variação entre -5% e 5%
+    *cotacaoEthereum += (*cotacaoEthereum) * ((rand() % 11 - 5) / 100.0);
+    *cotacaoRipple += (*cotacaoRipple) * ((rand() % 11 - 5) / 100.0);
+}
+
+// Função principal com menu de opções
+int main() {
+    Usuario usuarios[MAX_USERS];
+    int totalUsuarios = 0;
+    carregarDados(usuarios, &totalUsuarios);
+
+    float cotacaoBitcoin = 50000.0, cotacaoEthereum = 3000.0, cotacaoRipple = 1.0;
+    int opcao, usuarioLogado = -1;
+    char cpf[12], senha[20];
+    float valor;
+
+    while (1) {
+        printf("\n--- Exchange de Criptomoedas ---\n");
+        if (usuarioLogado == -1) {
+            printf("1. Efetuar Login\n");
+            printf("2. Cadastrar Novo Usuário\n");
+        } else {
+            printf("1. Consultar Saldo\n");
+            printf("2. Depositar Reais\n");
+            printf("3. Sacar Reais\n");
+            printf("4. Comprar Criptomoeda\n");
+            printf("5. Vender Criptomoeda\n");
+            printf("6. Atualizar Cotação\n");
+            printf("7. Sair\n");
+        }
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+
+        if (usuarioLogado == -1 && opcao == 1) {
+            printf("CPF: ");
+            scanf("%s", cpf);
+            printf("Senha: ");
+            scanf("%s", senha);
+            usuarioLogado = efetuarLogin(usuarios, totalUsuarios, cpf, senha);
+        } else if (usuarioLogado == -1 && opcao == 2) {
+            cadastrarUsuario(usuarios, &totalUsuarios);
+            salvarDados(usuarios, totalUsuarios);
+        } else if (usuarioLogado != -1) {
+            switch (opcao) {
+                case 1:
+                    consultarSaldo(&usuarios[usuarioLogado]);
+                    break;
+                case 2:
+                    printf("Valor para depositar: ");
+                    scanf("%f", &valor);
+                    depositarReais(&usuarios[usuarioLogado], valor);
+                    break;
+                case 3:
+                    printf("Valor para sacar: ");
+                    scanf("%f", &valor);
+                    printf("Senha: ");
+                    scanf("%s", senha);
+                    sacarReais(&usuarios[usuarioLogado], valor, senha);
+                    break;
+                case 4:
+                    printf("Criptomoeda (Bitcoin/Ethereum/Ripple): ");
+                    char criptomoeda[10];
+                    scanf("%s", criptomoeda);
+                    printf("Valor para compra: ");
+                    scanf("%f", &valor);
+                    printf("Senha: ");
+                    scanf("%s", senha);
+                    float taxaCompra;
+                    if (strcmp(criptomoeda, "Bitcoin") == 0) taxaCompra = 0.02;
+                    else if (strcmp(criptomoeda, "Ethereum") == 0) taxaCompra = 0.01;
+                    else taxaCompra = 0.01;
+                    comprarCriptomoeda(&usuarios[usuarioLogado], senha, criptomoeda, valor, taxaCompra);
+                    break;
+                case 5:
+                    printf("Criptomoeda (Bitcoin/Ethereum/Ripple): ");
+                    scanf("%s", criptomoeda);
+                    printf("Valor para venda: ");
+                    scanf("%f", &valor);
+                    printf("Senha: ");
+                    scanf("%s", senha);
+                    float taxaVenda;
+                    if (strcmp(criptomoeda, "Bitcoin") == 0) taxaVenda = 0.03;
+                    else if (strcmp(criptomoeda, "Ethereum") == 0) taxaVenda = 0.02;
+                    else taxaVenda = 0.01;
+                    venderCriptomoeda(&usuarios[usuarioLogado], senha, criptomoeda, valor, taxaVenda);
+                    break;
+                case 6:
+                    atualizarCotacao(&cotacaoBitcoin, &cotacaoEthereum, &cotacaoRipple);
+                    printf("Nova cotação Bitcoin: %.2f\n", cotacaoBitcoin);
+                    printf("Nova cotação Ethereum: %.2f\n", cotacaoEthereum);
+                    printf("Nova cotação Ripple: %.2f\n", cotacaoRipple);
+                    break;
+                case 7:
+                    usuarioLogado = -1;
+                    salvarDados(usuarios, totalUsuarios);
+                    printf("Deslogado com sucesso!\n");
+                    break;
+                default:
+                    printf("Opção inválida!\n");
+                    break;
+            }
+        } else {
+            printf("Opção inválida!\n");
+        }
+    }
+
+    return 0;
+}
